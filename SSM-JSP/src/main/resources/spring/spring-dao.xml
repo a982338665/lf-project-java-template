@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans  xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+			http://www.springframework.org/schema/beans/spring-beans.xsd
+			http://www.springframework.org/schema/context
+			http://www.springframework.org/schema/context/spring-context-3.0.xsd">
+
+    <!--配置整合mybatis过程-->
+    <!--配置数据库相关参数:properties属性 ${url}-->
+    <context:property-placeholder location="classpath:jdbc.properties"/>
+    <!--数据库的链接池-->
+    <bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+        <!--配置连接池属性-->
+          <property name="driverClass" value="${jdbc.driverClassName}"/>
+          <property name="jdbcUrl" value="${jdbc.url}"/>
+          <property name="user" value="${jdbc.username}"/>
+          <property name="password" value="${jdbc.password}"/>
+        <!--<property name="driverClass" value="com.mysql.jdbc.Driver"/>-->
+        <!--&amp;等同于&-->
+        <!--原因是MySQL在高版本需要指明是否进行SSL连接。解决方案如下：
+            在mysql连接字符串url中加入ssl=true或者false即可，如下所示。
+            url=jdbc:mysql://127.0.0.1:3306/framework?characterEncoding=utf8&useSSL=true-->
+        <!--<property name="jdbcUrl" value="jdbc:mysql://127.0.0.1:3306/seckill?useUnicode=true&amp;characterEncoding=utf8&amp;useSSL=true"/>-->
+        <!--<property name="jdbcUrl" >
+            <value>jdbc:mysql:\\127.0.0.1:3306\seckill</value>
+        </property>-->
+        <!--<property name="user" value="root"/>-->
+        <!--<property name="password" value="root"/>-->
+        <!--连接池的私有属性配置=因为要做高并发，所以需要调整其连接池私有属性，这个不能从文件中读取-->
+        <!--<property name="maxPoolSize" value="30"/>-->
+        <!--<property name="minPoolSize" value="10"/>-->
+        <property name="maxPoolSize" value="${maxPoolSize}"/>
+        <property name="minPoolSize" value="${minPoolSize}"/>
+        <!--关闭连接后不自动commit:默认为false-->
+        <!--<property name="autoCommitOnClose" value="false"/>-->
+        <property name="autoCommitOnClose" value="${autoCommitOnClose}"/>
+        <!--获取连接超时时间-->
+        <!--<property name="checkoutTimeout" value="1000"/>-->
+        <property name="checkoutTimeout" value="${checkoutTimeout}"/>
+        <!--获取连接失败后的重试次数-->
+        <!--<property name="acquireRetryAttempts" value="2"/>-->
+        <property name="acquireRetryAttempts" value="${acquireRetryAttempts}"/>
+        <!--
+         com.mchange.v2.resourcepool.BasicResourcePool$AcquireTask@2fe9def - Acquisition Attempt Failed!!!
+         Clearing pending acquires. While trying to acquire a needed new resource,
+         we failed to succeed more than the maximum number of allowed acquisition attempts (2).
+         Last acquisition attempt exception:
+         java.sql.SQLException: No suitable driver
+         (在试图获取所需的新资源时，我们未能成功地超过允许的最大尝试次数（2）。最后一次尝试尝试异常：
+          难道是没有合适的驱动程序)
+        -->
+        <!--<property name="acquireRetryAttempts" value="${acquireRetryAttempts}"/>-->
+    </bean>
+    <!--配置sqlSessionFactory对象-->
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <!--注入数据库连接池-->
+        <property name="dataSource" ref="dataSource"></property>
+        <!--配置mybatis全局配置文件：classpath指的是resource和java目录-->
+        <property name="configLocation" value="classpath:mybatis-config.xml"/>
+        <!--扫描entity包，使用别名-->
+        <property name="typeAliasesPackage" value="org.seckill.entity"></property>
+        <!--扫描mapper-->
+        <property name="mapperLocations" value="classpath:mapper/*.xml"/>
+    </bean>
+    <!--配置扫描Dao接口，动态实现Dao接口并注入到spring容器中-->
+    <!-- 配置mybitas mapper-dao 映射自动扫描 -->
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <!--注入sqlsessionFactory：防止提前加载-->
+        <property name="sqlSessionFactoryBeanName" value="sqlSessionFactory"/>
+        <!--扫描Dao接口包-->
+        <property name="basePackage" value="org.seckill.dao"/>
+    </bean>
+    <!--redis非mybatis范畴，所以需要自己注入RedisDao:构造注入，传递ip/port-->
+    <bean id="redisDao" class="org.seckill.dao.cache.RedisDao">
+        <!--index指构造注入时，所引用的有参构造的方法的参数-->
+        <constructor-arg index="0" value="localhost"/>
+        <constructor-arg index="1" value="6379"/>
+    </bean>
+</beans>

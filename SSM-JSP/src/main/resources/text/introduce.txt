@@ -1,0 +1,410 @@
+---------------------------------------------
+1.官网地址：(从官网获取资源)
+  1.logback:http://logback.qos.ch/manual/configuration.html
+  2.Spring: http://docs.spring.io/spring/docs/
+  3.mybatis:http://mybatis.github.io/mybatis-3/zh/index.jsp
+                   http://www.mybatis.org/mybatis-3/zh/
+----------------
+2.mvn命令创建web骨架项目：
+  mvn archetype:create-DgroupId=org.seckill -DartifactId=seckill -DatchetypeArtifactId=maven-archetype-webapp
+----------------
+3.idea创建maven项目：
+    --1.使用提供好的示例：maven-archetype-webapp
+    --2.修改web.xml版本为servlet3.1
+        --servlet2.3中jsp的默认el表达式是不工作的,所以需要引入更高版本：
+          G:\apache-tomcat-8.0.22\webapps\examples\WEB-INF\web.xml
+          复制，修改servlet版本为3.1
+    --3.补全缺失目录：
+        project structure --mould--新建java、test:java/resource,并确定其功能
+    --4.添加pom依赖：spring、log、web等
+---------------
+4.秒杀系统业务流程分析：
+    商家-----添加/调整-----库存-----秒杀/预售-----用户
+    商家-----发货/核账-----库存-----付款/退货-----用户
+    --核心：库存的处理
+        --用户秒杀----减库存+记录购买明细----完整事务----数据落地
+        --购买行为：成功时间、有效期。付款发货信息
+---------------
+5.数据落地：
+    --mysql:关系型数据库：事务机制仍是目前最可靠的落地方案。
+    --nosql：非关系型数据库，例如redis等存储方案（追求高可用、性能、分布式），对事物的支持较差、
+---------------
+6.mysql实现秒杀难点分析：
+    --竞争：n个用户同时秒杀一个活动
+    --mysql：事务+行级锁
+    --事务：
+        --1.start transaction
+        --2.update 库存数量  -------竞争关系在此处产生
+        --3.insert 购买明细
+        --4.commit
+    --行级锁：
+        update table set num=num-1 where id=10 and num>1
+        --第十件商品同时被N个人秒杀，其余等待----如何高效处理竞争/即减库存的操作？？？？？？？？？？？？？？？
+ --------------
+ 7.具体实现：秒杀功能
+    --秒杀借口暴露：禁止浏览器插件自动请求
+    --执行秒杀
+    --秒杀相关查询
+ -------------
+ 8，代码开发阶段
+    --DAo设计编码：包含表设计
+    --service设计
+    --web设计
+ -------------
+ 9.具体设计：
+    --代码自动生成设置
+ -------------
+ 10.mybatis：对象关系映射
+    --sql可以写在注解/xml
+    --Mapper自动实现Dao接口/API编程方式实现Dao接口（可以不写ResultMap映射）
+    --mybatis+spring=
+        --更少编码、只写接口，不写实现
+        --更少配置、别名
+        --足够灵活、
+-------------
+ 11.-单项目多平台使用时，
+    --1.可将具体的连接数据库信息配置在tomcat中：（JndiObjectFactoryBean多数据源配置+tomcat配置连库信息）
+ 12.-一般而言，配置在项目中即可。
+ --------------------------------
+13.spring管理service：
+    spring-ioc功能理解：对象工厂+依赖管理==一致性访问接口
+    业务对象依赖图：
+    service--dao--SqlSessionFactory--DataSource
+14.ioc使用原因：---
+-0-------------------------------
+15：声明式事务：
+    --1.ProxyFactoryBean+XML  早期使用方式(2.0)
+    --2.tx:advice+aop         一次配置永久生效
+    --3.注解@Transational     注解控制，建议使用此种方式---
+16.事务方法嵌套：
+    传播行为--默认为propagation_required
+17.Spring只有抛出运行时异常（RuntimeException）时才会回滚
+18.小心不当的try catch，防止不正常时被commit
+--------------------------------
+   /**
+     * 使用注解控制事务方法的有点：
+     * 1.开发团队达成一致约定，明确标注事务方法的编程风格
+     * 2.保证事务方法的执行时间尽可能短，不要穿插其他网络操作（HTTP协议、cache、redis等请求或者剥离到事务之外）
+     * 3.不是所有的方法都需要事务，如只有一条修改操作，只读操作不需要事务控制
+     */
+--------------------------------
+web开始：
+    --1.前端交互设计
+        --前端页面流程：列表--详情--login--展示--写入cookies
+        --详情页流程逻辑：
+            --1.获取标准系统时间（服务器时间）-- 时间判断，开始时间结束时间
+                --结束：秒杀结束
+                --未开始：倒计时---秒杀地址--执行秒杀
+                --已开始：---------秒杀地址--执行秒杀
+    --2.Resultful：一个优雅的url表述方式/资源状态或者资源状态的转移
+        Resultful规范：
+            --get   查询操作，可重复执行
+            --post  添加、修改操作
+            --put   修改操作，一般与post不区分
+            --delete删除操作
+        url设计：
+        /模块/资源/{标示}/集合1(名词)...
+        get /user/{uid}/friends  获取好友列表
+        ---------
+        本项目中的url设计：
+        GET /seckill/list         秒杀列表
+        GET /seckill/{id}/detail  详情页
+        GET /seckill/time/now     系统时间
+        POST/...                  暴露秒杀/执行秒杀等
+    --3.spring-mvc：
+        --1.理论：围绕Handler开发
+            --流程：
+                用户
+                --DispatcherServlet--所有请求都交付于此servlet容器
+                --DefaultAnnotationHandlerMapping-- 注解url映射
+                --DefaultAnnotationHandlerAdapter-- 并进行适配开发的controller
+                --ModelAndView     --将请求结果交付于DispatcherServlet
+                --InternalResourceViewResolver --model/list.jsp
+            --http请求地址映射原理：
+                --http请求--servlet容器（tomcat/jetty）{
+                    1.spring-mvc的注解映射管系
+                    2.handler的处理方法
+                }
+            --注解映射技巧：
+                --spring-mvc支持：
+                    --1.@RequestMapping注解
+                    --2.支持标准的url
+                    --3.Ant风格url(即包含？(匹配一个字符)，*（匹配任意字符），**（匹任意路径），等字符)
+                    --4.带{XXX}占位符的url；
+                    如：
+                        user/*/creation        user/aaa/creation
+                        user/**/creation       user/aaa/bbb/creation
+                        user/{userId}          user/123
+                        user/{userId}/{phone}  user/123/12121212121
+            --请求细节处理：
+                --1.参数绑定
+                --2.请求方式限制
+                --3.请求转发/冲定向
+                --4.数据模型赋值
+                --5.返回json数据
+                --6.cookie访问
+            --1.数据Model
+            --2.页面view
+    --4.bootstrap+jquery
+        --框架地址：www.runoob.com/bootstrap/bootstrap-environment-setup.html
+        --jsp页面静态包含和动态包含的区别主要从以下5方面进行分析：
+          1.语法：
+               静态包含：<%@ include file=""%>
+               动态包含：<jsp: include page=""%>
+          2.静态包含时，包含页面和被包含页面中的html.head,body等标签总共只有出现一次，否则会报错；而动态包含不会。
+          3.静态包含不会检查所包含文件中的变化；但是动态包含，可以检查所含文件中的变化，并且可以带参数
+          4.静态包含是先将文件中内容导入被包含的文件中，再一起编译，最后再展现给用户（先包含再编译）
+          5.动态包含可以自动区分被包含文件是静态的还是动态的，如果是静态，则与静态包含一样处理；若是动态页面，
+               则可以先进行动态的处理，再将结果包含进来。（先编译再包含）
+          ------------------------------------
+          1.动态包含用的元素是page，而且有两种形式。静态包含用的是file,只有一种形式。
+          2.生成的文件不同，静态的包含是将两个jsp文件二合一，生成一个以包含页面命名的servlet和class文件，动态包含的两个jsp文件各自生成自己的servlet和class文件。
+          3. 传参方式一：<jsp:include page=“a.jsp?param=123”/>时被包含的jsp页面是可以访问该参数的。
+          4. 传参方式二：
+                      <jsp:include page=“a.jsp”>
+                               <jsp:param name=“” value=“”>
+                              <jsp:param name=“” value=“”>
+                     </ jsp:include >
+          5.在客户端访问包含页面时地址栏后面直接加上参数后传递，这种形式的传参是客户端送来的，但是这两个页面的request对象不是同一个，因为3中已经说了包含的页面可以向被包含的页面传递参数，所以被包含的request对象含的参数个数应该大于等于包含页面的参数个数的。所以它们各有各的request对象。而且被包含的jsp页面可以访问传到包含页面的参数。
+          6.动态包含只有在执行到它的时候才加载，所以它才叫动态包含。
+------------------------------------------------
+maven项目idea中标签库jstl的引用：
+    --1.引入两个jar包
+    --2.setting--DTD--添加对应的dtd文件
+    --3.重新导入modules： Project Structure ----Modules------删除原来的，新增，添加好xml可加载访问路径，然后web.xml就可以正常使用
+    --4，若还不行重启
+------------------------------------------------
+新建spring-web.xml文件，classpath文件路径无法获取问题：
+项目中新增配置文件时，要记得将配置文件置于Modules中：
+    Project Structure ----Modules------删除原来的，新增，添加好xml可加载访问路径，然后web.xml就可以正常使用
+
+-----------------------------------------------
+整合报错问题：
+javax.servlet.ServletException: Servlet.init() for servlet seckill-dispatcher threw exception
+	org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:100)
+	org.apache.catalina.valves.AccessLogValve.invoke(AccessLogValve.java:562)
+	org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:394)
+	org.apache.coyote.http11.Http11Processor.process(Http11Processor.java:243)
+	org.apache.coyote.http11.Http11Protocol$Http11ConnectionHandler.process(Http11Protocol.java:188)
+	org.apache.coyote.http11.Http11Protocol$Http11ConnectionHandler.process(Http11Protocol.java:166)
+	org.apache.tomcat.util.net.JIoEndpoint$SocketProcessor.run(JIoEndpoint.java:302)
+	java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1145)
+	java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:615)
+	java.lang.Thread.run(Thread.java:744)
+root cause
+java.lang.NoClassDefFoundError: org/springframework/web/cors/CorsProcessor
+-----------------------------------
+问题：jar包版本不一致的问题--如下4.3.7.RELEASE换为4.1.7
+         <dependency>
+             <groupId>org.springframework</groupId>
+             <artifactId>spring-web</artifactId>
+             <version>4.1.7.RELEASE</version>
+         </dependency>
+         <dependency>
+             <groupId>org.springframework</groupId>
+             <artifactId>spring-webmvc</artifactId>
+             <version>4.3.7.RELEASE</version>
+         </dependency>
+         <!--spring-test相关依赖-->
+         <dependency>
+             <groupId>org.springframework</groupId>
+             <artifactId>spring-test</artifactId>
+             <version>4.1.7.RELEASE</version>
+------------------------------------
+使用CDN获取公共js http://www.bootcdn.cn/
+    cdn使用稳定，也是web加速的一个重点
+------------------------------------
+javascript模块化--
+------------------------------------
+高并发瓶颈分析：
+    --1.高并发位置详情页*，获取系统时间*
+        --1.未开始秒杀：倒计时
+        --2.已开始秒杀：--地址暴露接口* --执行秒杀* --返回结果
+    --2.详情页：
+        --用户大量的刷新，
+            （detail页静态化，静态资源css.js等）会部署在cdn节点上
+             即访问detail页面时，是不会访问我们系统，此时拿不到系统时间
+             所以需要专门写一个接口获取系统时间
+        --CDN理解：
+            1.内容分发网络，加速用户获取数据的系统（静态资源+动态资源--包含视频资源（如优酷，搜狐等都会使用CDN））
+            2.部署在离用户最近的网络节点上
+            3.命中CND不需要访问后端服务器
+            4.互联网自己搭建或租用
+        --获取系统时间，不会缓存在CDN上，也不用优化：
+            原因：java再访问一次内存（cacheline）大约10ns(纳秒)，1s=10亿纳秒，没有GC参与，大约1s可以访问1亿次
+                  因为其内部没有任何后端访问，所以不需要优化
+        --秒杀地址接口分析：
+            --1.无法使用CDN缓存，cdn适用于资源不易变化的，如静态资源javascript
+            --2.适合服务器端缓存redis等（官方给出：1s-10万次访问）
+                若redis做了集群，便可防止百万级并发
+                (查询数据库-放到redis-访问时直接从redis拿数据)
+            --3.一致性维护成本低（若数据有变动，可以更改数据库+redis缓存（缓存可不改，等失效））
+        --秒杀地址接口优化：
+            请求--（redis--mysql（一致性维护：超时穿透（redis超时用mysql），主动更新（mysql更改主动更新到redis）））
+        --秒杀操作优化分析：
+            --1.无法使用cdn
+            --2.后端缓存困难：库存问题（不能在缓存中减库存，会产生不一致，要通过mysql事务保证数据一致性）
+            --3.一行数据竞争：热点商品（会对mysql表中的库存数量进行大量的update操作）
+        --其他方案分析：
+            --执行秒杀：--此方式可防止超高并发（redis集群）--腾讯/阿里常用的解决方案
+                --1.原子计数器（事务）--- redis/Nosql
+                --2.记录行为消息     --- 分布式MQ（高性能消息队列）
+                --3.消费消息并落地   --- Mysql
+                -------
+                --4.成本分析：
+                    --1.运维成本和稳定性：Nosql(非关系型数据库-不太稳定)，MQ等（开发/强大运维团队/）
+                    --2.开发成本：数据一致性，回滚方案（mq超时或减库存失败等均需手动处理）等
+                    --3.幂等性难保证：如重复秒杀问题（一般还会需要一个分布式nosql来记录哪些用户已经秒杀过减过库存，从而增加成本）--不适合新手
+                    --4.不适合新手的架构
+        --为什么不使用mysql：
+            mysql低效？？？
+            --测试：同一个id执行update减库存？
+                一条update压力测试（约4WQPS（4万QPS））不同行可达几十万qps
+                --即：同一个商品1s能够被卖40000次（已经很高）
+            --java控制事务的行为分析：--串行化操作
+                --1.减库存 ---  insert记录  ---commit
+                --2.减库存 ---  等待行锁     ---获得锁lock
+                --3.....
+            --瓶颈分析：
+                --1.update减库存----（网络延迟+JVM的GC（新生代GC停止java代码几十毫秒））
+                --2.insert购买明细-- （同上：GC不会每次都出现，但是一定会出现）
+                --3.commit/rollback
+                ------
+                --4.第一个请求完成之后，才会释放锁进入第二个
+                --5.所以问题不是java慢或者mysql慢，而是执行过程中的事务导致慢，
+                    所有sql执行时间+网络延迟时间+GC时间=2ms
+                    意味着：1s内500次秒杀，当排队长时，性能会指数级下降
+            --优化分析：
+                --1.行级锁在commit/rollback后释放
+                --2.优化方向减少行级锁持有时间-----
+            --延迟分析：
+                --1.同城机房网络：
+                    --延迟时间0.5ms-2ms
+                    --最大并发请求：1000qps ping 10.16.14.181 #localhost:10.10.34.11
+                    --update后JVM-GC(50ms左右)，最大并发请求20qps
+                      (系统并发越高，GC越频繁，锁的持有时间又会延长50ms)
+                    网络延迟:一般连接服务器，速度快是在50ms以下算快的，有很快的10MS左右的，那是相当快了。
+                    一般100MS以内都算正常，100MS以上就算慢了，那些几百MS是相当慢了
+                --2.异地机房：
+                    --tomcat-web服务器部署在北京
+                    --mysql部署在上海机房
+                    ---会出现：将一个sql发过去，不考虑执行时间，就需要20ms，就意味着（并发量）qps最高就50
+                    （真空：30万公里/秒
+                      光在玻璃中的传播速度约为真空的2/3
+                      往返距离：1300*2=2600
+                      1300*2/(300000*2/3)=13毫秒 --实际为20ms左右
+                    ）
+                --3.如何判断update更新库存成功
+                    --1.update自身没报错
+                    --2.客户端确认update影响记录数
+                    优化思路：
+                        --把客户端逻辑放在mysql服务器端，避免网络延迟和GC影响（两种方案）：
+                            1.定制sql方案：（早期天猫和阿里使用）
+                                update/*+[auto_commit]*/,需要修改mysql源码
+                                执行此条语句时，就会判断是否commit或者rollback
+                                不由java客户端去进行控制，从本质上解决了网络延迟+GC的影响
+                                --难点：需要修改mysql源码，一般公司难做到
+                            2.使用存储过程：整个事务放在mysql端完成--执行效率高
+------------------------------------------
+优化总结：
+    1.前端控制：暴露接口，防止按钮重复，用户重复点击
+    2.动静态数据分离：cdn缓存，后端缓存（redis ，memacache等）
+    3.事务竞争优化：减少事务锁持有时间（原子性，隔离性，一致性，持久性）--存储过程（1s可以做几万次的同一行操作）
+    ---
+地址暴露接口优化：
+    1.redis官网：www.redis.io/download
+    2.java相关的序列化技术比对（github）：github.com/eishay/jvm-serializers/wiki
+秒杀执行接口优化：
+    --1.简单优化:
+        --1.insert 购买明细（insert ignore：返回0/1,可以根据此来挡住一部分update）
+        --2.update 减库存(行级锁---，降低mysql行级锁持有时间)
+        --3.commit
+    --2.深度优化：
+        --事务sql在mysql端执行（存储过程：网络延迟/gc影响小时，只接受mysql端结果）
+------------------------------------------
+大型系统部署架构：
+    --1.CDN(js或自己的detail页面静态化处理推送到CDN)：内容分发网络，加速获取数据，不用访问我们服务器
+    --2.webserver：Nginx+Jetty
+    --3.redis 服务器端缓存
+    --4.mysql事务-存储过程
+    -------------------
+    --流量：
+        --部分流量被CDN缓存拦截
+        --Nginx（自己的服务器）智能DNS解析
+            --根据用户请求ip，智能解析DNS，以请求最近的nginx服务器
+            --逻辑集群：
+                --会对servlet容器做负载均衡：tomcat集群/jetty集群
+                --缓存集群（redis），此例中仅是一台redis
+        --mysql：项目庞大时候：
+            --会进行分库分表，根据秒杀id进行
+            --mod：根据秒杀id取模分表，按照负载，读写请求量进行分库
+            ------------
+            分库分表框架：
+                阿里巴巴的TDDL
+            保证了同一个秒杀单在同一个数据库中的事务
+        --统计分析：从多个DB中拉取数据做统计
+-------------------------------------------
+整个过程参与者：
+    前端
+    后端
+    测试： 压测秒杀系统--高级测试
+    DBA： 跟DBA协商分库分表的资源，部署
+    运维： nginx等部署
+-------------------------------------------
+课程总结：
+    数据层：
+        数据库设计和实现
+        mybatis理解和使用 Dao
+        mybatis+spring整合
+    --------
+    业务层：
+        业务接口设计封装
+        springioc配置
+        spring声明式事务理解
+    --------
+    web层：
+        resultful接口运用
+        springmvc使用技巧
+        前后端交互分析
+        bootstrap+js使用（js模块化）
+    并发优化分析：
+        系统瓶颈分析
+        事务，锁，网络延迟
+        前端CDN，缓存等使用
+        集群化部署
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
