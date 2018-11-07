@@ -1,0 +1,38 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+    <meta charset="UTF-8">
+</head>
+<body>
+<!--变量申明与取值-->
+<#assign var="hello,spring"/>
+    ${var}
+<h1>
+    整型取值：
+</h1>
+<ul>
+    <li>int:${intVar}</li>
+    <li>long:${longVar}</li>
+    <li>String:${StringVar}</li>
+    <li>Double:${DoubleVar}</li>
+    <li>boolean:${boolVar?string('true','false')}</li>
+    <li>boolean:${boolVarfalse?string('true','false')}</li>
+</ul>
+<h1>
+    日期取值：
+</h1>
+<ul>
+    <li>年月日时分秒：${currentTime?string('yyyy-MM-dd HH:mm:ss zzzz')}</li>
+    <li>年月日时分秒：${currentTime?string('yyyy-MM-dd HH:mm:ss')}</li>
+    <li>年月日：${currentTime?string('yyyy-MM-dd')}</li>
+    <li>时分秒：${currentTime?string('HH:mm:ss')}</li>
+</ul>
+<h1>
+    null取值：
+</h1>
+<ul>
+    <li>null：${currentTime?string('yyyy-MM-dd HH:mm:ss zzzz')}</li>
+</ul>
+<h1>hello</h1>
+</body>
+</html>
