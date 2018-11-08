@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:bean="http://www.alibaba.com/schema/stat"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+http://www.springframework.org/schema/beans/spring-beans.xsd
+http://www.springframework.org/schema/context
+http://www.springframework.org/schema/context/spring-context.xsd
+http://www.springframework.org/schema/aop
+http://www.springframework.org/schema/aop/spring-aop.xsd
+http://www.springframework.org/schema/tx
+http://www.springframework.org/schema/tx/spring-tx.xsd http://www.alibaba.com/schema/stat http://www.alibaba.com/schema/stat.xsd">
+
+
+    <!--spring 管理的 三层配置+++++++++++++++++++++++++++++++++++++++++++++++++++++++++-->
+    <!--配置Action类
+        1.交给spring管理配置如下：spring默认单例，需要修改为多例scope="prototype"
+        2.交给struts创建，配置在struts.xml
+    -->
+    <bean id="productAction" class="pers.li.action.ProductAction" scope="prototype">
+        <!--注入service-->
+        <property name="productService" ref="productService"/>
+    </bean>
+    <!--配置业务层类-->
+    <bean id="productService" class="pers.li.service.ProductService">
+        <!--注入dao-->
+        <property name="productDao" ref="productDao"/>
+    </bean>
+    <!--配置dao-->
+    <bean id="productDao" class="pers.li.dao.ProductDao">
+        <!--注入hibernate-->
+        <property name="sessionFactory" ref="sessionFactory"/>
+    </bean>
+    <!--配置事务管理-->
+    <bean id="transactionManager" class="org.springframework.orm.hibernate5.HibernateTransactionManager">
+        <property name="sessionFactory" ref="sessionFactory"/>
+    </bean>
+    <!--开启事务注解-->
+    <tx:annotation-driven transaction-manager="transactionManager"/>
+    <!--spring 管理的 三层配置+++++++++++++++++++++++++++++++++++++++++++++++++++++++++-->
+
+
+    <!--数据库配置+++++++++++++++++++++++++++++++++++++++++++++++++++++++++-->
+    <!--引入属性文件-->
+    <context:property-placeholder location="classpath:jdbc.properties"/>
+    <!--配置连接池-->
+    <!--2.Druid数据池-->
+    <bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource"
+          init-method="init" destroy-method="close">
+        <!--配置连接池属性-->
+        <property name="driverClassName" value="${jdbc.driverClassName}"/>
+        <property name="url" value="${jdbc.url}"/>
+        <property name="username" value="${jdbc.username}"/>
+        <property name="password" value="${jdbc.password}"/>
+        <!-- 配置初始化大小、最小、最大 -->
+        <property name="initialSize" value="3" />
+        <property name="minIdle" value="3" />
+        <property name="maxActive" value="20" />
+        <!-- 配置获取连接等待超时的时间 -->
+        <property name="maxWait" value="60000" />
+        <!-- 配置间隔多久才进行一次检测，检测需要关闭的空闲连接，单位是毫秒 -->
+        <property name="timeBetweenEvictionRunsMillis" value="60000" />
+        <!-- 配置一个连接在池中最小生存的时间，单位是毫秒 -->
+        <property name="minEvictableIdleTimeMillis" value="300000" />
+        <property name="validationQuery" value="SELECT 1" />
+        <property name="testWhileIdle" value="true" />
+        <property name="testOnBorrow" value="false" />
+        <property name="testOnReturn" value="false" />
+        <!-- 配置监控统计拦截的filters -->
+        <property name="filters" value="stat" />
+    </bean>
+    <!--数据库配置+++++++++++++++++++++++++++++++++++++++++++++++++++++++++-->
+
+
+    <!--配置Hibernate属性交给spring管理+++++++++++++++++++++++++++++++++++++++++++++++++++-->
+    <bean id="sessionFactory" class="org.springframework.orm.hibernate5.LocalSessionFactoryBean">
+        <!--注入连接池-->
+        <property name="dataSource" ref="dataSource"/>
+        <property name="hibernateProperties">
+            <props>
+                <prop key="hibernate.dialect">org.hibernate.dialect.MySQLDialect</prop>
+                <prop key="hibernate.show_sql">true</prop>
+                <!--无表创建，有表更新-->
+                <prop key="hibernate.hbm2ddl.auto">update</prop>
+                <prop key="hibernate.format_sql">true</prop>
+            </props>
+        </property>
+        <!--配置Hibernate的映射文件-->
+        <property name="mappingResources">
+            <list>
+                <value>hbm/Product.hbm.xml</value>
+            </list>
+        </property>
+        <property name="packagesToScan">
+            <list>
+                <value>pers.li.entity</value>
+            </list>
+        </property>
+        <!--配置Hibernate属性+++++++++++++++++++++++++++++++++++++++++++++++++++-->
+
+    </bean>
+</beans>
