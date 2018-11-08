@@ -31,7 +31,16 @@
     null取值：
 </h1>
 <ul>
-    <li>null：${currentTime?string('yyyy-MM-dd HH:mm:ss zzzz')}</li>
+    <!--加！号，会先判断是否存在，若值为null则不显示-->
+    <li>null：${nullVar!}</li>
+    <li>null：${nullVar!'我是null'}</li>
+</ul>
+<h1>
+    在后端没有定义的取值：
+</h1>
+<ul>
+    <!--加！号，若值为null则不显示-->
+    <li>missing：${sdfsafasdf!'默认值'}</li>
 </ul>
 <h1>hello</h1>
 </body>
