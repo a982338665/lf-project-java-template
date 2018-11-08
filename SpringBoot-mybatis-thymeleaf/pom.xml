@@ -11,11 +11,11 @@
 	</parent>
 
 	<groupId>pers.li</groupId>
-	<artifactId>SpringBoot-mybatis-thymeleaf</artifactId>
+	<artifactId>springboot-mybatis-thymeleaf</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<packaging>jar</packaging>
 
-	<name>SpringBoot-mybatis-thymeleaf</name>
+	<name>springboot-mybatis-thymeleaf</name>
 	<description>Demo project for Spring Boot</description>
 
 
