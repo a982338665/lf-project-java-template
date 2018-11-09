@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:aop="http://www.springframework.org/schema/aop" xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:bean="http://www.alibaba.com/schema/stat"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+http://www.springframework.org/schema/beans/spring-beans.xsd
+http://www.springframework.org/schema/context
+http://www.springframework.org/schema/context/spring-context.xsd
+http://www.springframework.org/schema/aop
+http://www.springframework.org/schema/aop/spring-aop.xsd
+http://www.springframework.org/schema/tx
+http://www.springframework.org/schema/tx/spring-tx.xsd http://www.alibaba.com/schema/stat http://www.alibaba.com/schema/stat.xsd">
+
+
+    <!--spring 管理的 三层配置+++++++++++++++++++++++++++++++++++++++++++++++++++++++++-->
+    <!--配置Action类
+        1.交给spring管理配置如下：spring默认单例，需要修改为多例scope="prototype"
+        2.交给struts创建，配置在struts.xml
+    -->
+    <bean id="productAction" class="pers.li.action.ProductAction" scope="prototype">
+        <!--注入service-->
+        <property name="productService" ref="productService"/>
+    </bean>
+    <bean id="employeeAction" class="pers.li.action.EmployeeAction" scope="prototype">
+        <property name="employeeService" ref="employeeService"/>
+        <property name="departmentService" ref="departmentService"/>
+    </bean>
+    <bean id="departmentAction" class="pers.li.action.DepartmentAction" scope="prototype">
+        <property name="departmentService" ref="departmentService"/>
+    </bean>
+
+
+
+    <!--配置业务层类-->
+    <bean id="productService" class="pers.li.service.ProductService">
+        <!--注入dao-->
+        <property name="productDao" ref="productDao"/>
+    </bean>
+    <bean id="employeeService" class="pers.li.service.EmployeeService">
+        <property name="employeeDao" ref="employeeDao"/>
+    </bean>
+    <bean id="departmentService" class="pers.li.service.DepartmentService">
+        <property name="departmentDao" ref="departmentDao"/>
+    </bean>
+
+
+
+    <!--配置dao-->
+    <bean id="productDao" class="pers.li.dao.ProductDao">
+        <!--注入hibernate-->
+        <property name="sessionFactory" ref="sessionFactory"/>
+    </bean>
+    <bean id="employeeDao" class="pers.li.dao.EmployeeDao">
+        <property name="sessionFactory" ref="sessionFactory"/>
+    </bean>
+    <bean id="departmentDao" class="pers.li.dao.DepartmentDao">
+        <property name="sessionFactory" ref="sessionFactory"/>
+    </bean>
+
+    <!--spring 管理的 三层配置+++++++++++++++++++++++++++++++++++++++++++++++++++++++++-->
+
+</beans>
