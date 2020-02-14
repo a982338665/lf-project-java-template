@@ -1,5 +1,6 @@
 package pers.li.aseckill.web;
 
+import org.common.anno.KNInterfaceDesc;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -39,6 +40,7 @@ public class AjaxSeckillController {
      * */
     @RequestMapping(value="/seckill", method= RequestMethod.POST)
     @ResponseBody
+    @KNInterfaceDesc("接口描述")
     public Result<SOrderInfo> miaosha(Model model,SUser user,
                                      @RequestParam("goodsId")long goodsId) {
         model.addAttribute("user", user);
